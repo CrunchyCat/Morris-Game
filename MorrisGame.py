@@ -36,8 +36,11 @@ class Morris:
     @dataclass
     class Evaluator:
         '''Data Class to Store a Board & its Evaluation'''
+        eval: int = 0                       # Evaluation of the Board
         board: list[str] = field(default_factory=lambda: []) # Board
-        evaluation: int = 0                     # Evaluation of the Board
+        def __eq__(self, other): return self.eval == other.eval
+        def __lt__(self, other): return self.eval < other.eval
+        def __gt__(self, other): return self.eval > other.eval
     
     def __minimax(self, b: list[str], is_player_1=True, depth=0) -> Evaluator:
         '''MiniMax Algorithm
@@ -47,20 +50,10 @@ class Morris:
         @return: Evaluation of the Board'''
         if depth >= self.MAX_DEPTH:
             Morris.states_reached += 1
-            return Morris.Evaluator(b, self.static_estimation(b))
+            return Morris.Evaluator(self.static_estimation(b), b)
         if is_player_1:
-            eval_best = Morris.Evaluator(evaluation=-sys.maxsize - 1)
-            for move in self.move(b):
-                eval_temp = self.__minimax(move, False, depth + 1).evaluation
-                if eval_best.evaluation < eval_temp:
-                    eval_best = Morris.Evaluator(move, eval_temp)
-        else: # If Player #2
-            eval_best = Morris.Evaluator(evaluation=sys.maxsize)
-            for move in self.move(self.__invert_board(b)):
-                eval_temp = self.__minimax(self.__invert_board(move), True, depth + 1).evaluation
-                if eval_best.evaluation > eval_temp:
-                    eval_best = Morris.Evaluator(move, eval_temp)
-        return eval_best
+            return max([Morris.Evaluator(self.play(i, False, depth + 1).eval, i) for i in self.move(b)], default=Morris.Evaluator(-sys.maxsize-1))
+        return min([Morris.Evaluator(self.play(self.__invert_board(i), True, depth + 1).eval, i) for i in self.move(self.__invert_board(b))], default=Morris.Evaluator(sys.maxsize))
     
     def __alpha_beta(self, b: list[str], is_player_1=True, depth=0, alpha=-sys.maxsize-1, beta=sys.maxsize) -> Evaluator:
         '''Alpha-Beta Pruning Algorithm
@@ -72,22 +65,18 @@ class Morris:
         @return: Evaluation of the Board'''
         if depth >= self.MAX_DEPTH:
             Morris.states_reached += 1
-            return Morris.Evaluator(b, self.static_estimation(b))
+            return Morris.Evaluator(self.static_estimation(b), b)
         if is_player_1:
-            eval_best = Morris.Evaluator(evaluation=-sys.maxsize - 1)
+            eval_best = Morris.Evaluator(-sys.maxsize - 1)
             for move in self.move(b):
-                eval_temp = self.__alpha_beta(move, False, depth + 1, max(alpha, eval_best.evaluation), beta).evaluation
-                if eval_best.evaluation < eval_temp:
-                    eval_best = Morris.Evaluator(move, eval_temp)
-                if eval_best.evaluation >= beta:
+                eval_best = max(eval_best, Morris.Evaluator(self.play(move, False, depth + 1, max(alpha, eval_best.eval), beta).eval, move))
+                if eval_best.eval >= beta:
                     return eval_best
         else: # If Player #2
-            eval_best = Morris.Evaluator(evaluation=sys.maxsize)
+            eval_best = Morris.Evaluator(sys.maxsize)
             for move in self.move(self.__invert_board(b)):
-                eval_temp = self.__alpha_beta(self.__invert_board(move), True, depth + 1, alpha, min(beta, eval_best.evaluation)).evaluation
-                if eval_best.evaluation > eval_temp:
-                    eval_best = Morris.Evaluator(move, eval_temp)
-                if eval_best.evaluation <= alpha:
+                eval_best = min(eval_best, Morris.Evaluator(self.play(self.__invert_board(move), True, depth + 1, alpha, min(beta, eval_best.eval)).eval, move))
+                if eval_best.eval <= alpha:
                     return eval_best
         return eval_best
     
@@ -96,31 +85,31 @@ class Morris:
         @param b: Board
         @return: Inverted Board'''
         return [self.pieces.opponent if i == self.pieces.player else self.pieces.player if i != self.pieces.EMPTY else i for i in b]
-    
+
     def __generate_add(self, b: list[str]) -> list[list[str]]:
         '''Generates all Possible Moves that Add a Piece on the Board
         @param b: Board
         @return: List of Possible Moves'''
         L = []
-        for b_temp, i in [([*b[:i], self.pieces.player, *b[i+1:]], i) for i in range(len(b)) if b[i] == self.pieces.EMPTY]:
-            L += self.__generate_remove(b_temp) if Morris.__will_close_mill(b_temp, i) else [b_temp]
+        for i in [i for i in range(len(b)) if b[i] == self.pieces.EMPTY]:
+            b_temp = [*b[:i], self.pieces.player, *b[i+1:]]     # Add Piece to Board at Location i
+            L += self.__generate_remove(b_temp) if Morris.__will_close_mill(b_temp, i, self.pieces.player) else [b_temp]
         return L
 
     def __generate_move(self, b: list[str]) -> list[list[str]]:
-        '''Generates all Possible Moves that Move a Piece on the Board
+        '''Generates all Moving Moves
         @param b: Board
         @return: List of Possible Moves'''
         L = []
-        for loc1 in [i for i in range(len(b)) if b[i] == self.pieces.player]:
-            for loc2 in [i for i in (range(len(b)) if b.count(self.pieces.player) == 3 else Morris.__neighbors(loc1)) if b[i] == self.pieces.EMPTY]:
-                b_temp = b[:]
-                b_temp[loc1] = self.pieces.EMPTY
-                b_temp[loc2] = self.pieces.player
-                L += self.__generate_remove(b_temp) if Morris.__will_close_mill(b_temp, loc2) else [b_temp]
+        for o in [i for i in range(len(b)) if b[i] == self.pieces.player]:
+            for i in [i for i in (range(len(b)) if b.count(self.pieces.player) == 3 else Morris.__neighbors(o)) if b[i] == self.pieces.EMPTY]:
+                b_temp = [*b[:i], self.pieces.player, *b[i+1:]] # Add a Piece to Board at Location i
+                b_temp[o] = self.pieces.EMPTY                   # Remove Piece from Origin Location o
+                L += self.__generate_remove(b_temp) if Morris.__will_close_mill(b_temp, i, self.pieces.player) else [b_temp]
         return L
     
     def __generate_remove(self, b: list[str]):
-        '''Generates all Possible Moves that Remove a Piece from the Board
+        '''Generates all Removal Moves
         @param b: Board
         @return: List of Possible Moves'''
         return [[*b[:i], self.pieces.EMPTY, *b[i+1:]] for i in range(len(b)) if b[i] == self.pieces.opponent and not Morris.__will_close_mill(b, i)]
@@ -161,13 +150,13 @@ class Morris:
             + 200 * (num_player - num_opponent))    # Value for Having More Pieces
 
     @staticmethod
-    def __will_close_mill(b: list[str], loc: int, piece=None):
-        '''Returns whether the Piece at Location loc will Close a Mill
+    def __will_close_mill(b: list[str], loc: int, piece: str=None):
+        '''Returns whether a Piece at Location loc will Close a Mill (Optional, check with Hypothetical Piece)
         @param b:     The Board
         @param loc:   The Location of the Piece
-        @param piece: The Piece at the Location
+        @param piece: A Hypothetical Piece at the Location [OPTIONAL]
         @return: True if the Piece at Location loc will Close a Mill, False Otherwise'''
-        C = b[loc] if piece == None else piece
+        C = piece or b[loc]
         return {
             0: (b[2] == b[4] == C)    or (b[6] == b[18] == C),
             1: (b[3] == b[5] == C)    or (b[11] == b[20] == C),
@@ -245,4 +234,4 @@ def test(argv: list[str], ab_pruning: bool, is_improved: bool, is_opening: bool,
     print("   Board Input: ", *input, sep = "")
     print("Board Position: ", *output.board, sep = "")
     print("Positions evaluated by static estimation:", Morris.states_reached)
-    print("ALPHA-BETA estimate" if ab_pruning else "MINIMAX estimate:", output.evaluation)
+    print("ALPHA-BETA estimate" if ab_pruning else "MINIMAX estimate:", output.eval)
