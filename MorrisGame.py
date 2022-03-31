@@ -42,7 +42,7 @@ class Morris:
         def __lt__(self, other): return self.eval < other.eval
         def __gt__(self, other): return self.eval > other.eval
     
-    def __minimax(self, b: list[str], is_player_1=True, depth=0) -> Evaluator:
+    def __minimax(self, b: list[str], depth=0) -> Evaluator:
         '''MiniMax Algorithm
         @param b:           Board
         @param is_player_1: True: Player 1, False: Player 2
@@ -51,11 +51,11 @@ class Morris:
         if depth >= self.MAX_DEPTH:
             Morris.states_reached += 1
             return Morris.Evaluator(self.static_estimation(b), b)
-        if is_player_1:
-            return max([Morris.Evaluator(self.play(i, False, depth + 1).eval, i) for i in self.move(b)], default=Morris.Evaluator(-sys.maxsize-1))
-        return min([Morris.Evaluator(self.play(self.__invert_board(i), True, depth + 1).eval, i) for i in self.move(self.__invert_board(b))], default=Morris.Evaluator(sys.maxsize))
+        if depth % 2 == 0: # If player #1
+            return max([Morris.Evaluator(self.play(i, depth + 1).eval, i) for i in self.move(b)], default=Morris.Evaluator(-sys.maxsize-1))
+        return min([Morris.Evaluator(self.play(self.__invert_board(i), depth + 1).eval, i) for i in self.move(self.__invert_board(b))], default=Morris.Evaluator(sys.maxsize))
     
-    def __alpha_beta(self, b: list[str], is_player_1=True, depth=0, alpha=-sys.maxsize-1, beta=sys.maxsize) -> Evaluator:
+    def __alpha_beta(self, b: list[str], depth=0, alpha=-sys.maxsize-1, beta=sys.maxsize) -> Evaluator:
         '''Alpha-Beta Pruning Algorithm
         @param b:           Board
         @param is_player_1: True: Player 1, False: Player 2
@@ -66,16 +66,16 @@ class Morris:
         if depth >= self.MAX_DEPTH:
             Morris.states_reached += 1
             return Morris.Evaluator(self.static_estimation(b), b)
-        if is_player_1:
+        if depth % 2 == 0: # If player #1
             eval_best = Morris.Evaluator(-sys.maxsize - 1)
             for move in self.move(b):
-                eval_best = max(eval_best, Morris.Evaluator(self.play(move, False, depth + 1, max(alpha, eval_best.eval), beta).eval, move))
+                eval_best = max(eval_best, Morris.Evaluator(self.play(move, depth + 1, max(alpha, eval_best.eval), beta).eval, move))
                 if eval_best.eval >= beta:
                     return eval_best
         else: # If Player #2
             eval_best = Morris.Evaluator(sys.maxsize)
             for move in self.move(self.__invert_board(b)):
-                eval_best = min(eval_best, Morris.Evaluator(self.play(self.__invert_board(move), True, depth + 1, alpha, min(beta, eval_best.eval)).eval, move))
+                eval_best = min(eval_best, Morris.Evaluator(self.play(self.__invert_board(move), depth + 1, alpha, min(beta, eval_best.eval)).eval, move))
                 if eval_best.eval <= alpha:
                     return eval_best
         return eval_best
