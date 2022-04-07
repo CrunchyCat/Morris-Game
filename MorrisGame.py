@@ -139,13 +139,13 @@ class Morris:
         num_opponent = b.count(self.pieces.opponent)
         num_moves_opponent = 0 if self.IS_OPENING else len(self.__generate_move(self.__invert_board(b)))
         if not self.IS_OPENING:
-            if num_opponent <= 2 or num_moves_opponent == 0:
+            if num_opponent < 3 or num_moves_opponent == 0:
                 return sys.maxsize
-            if num_player <= 2:
+            if num_player < 3:
                 return -sys.maxsize - 1
 
         return (175 * len(self.__pieces_in_premill(b)) * (1 if num_player < 4 else 2)   # x2 Value if in Endgame
-            + 125 * len(self.__pieces_blocking_mill(b)) * (2 if num_player < 4 else 1)  # x2 Value if in Midgame
+            + 125 * len(self.__pieces_in_double_mill(b)) * (2 if num_player < 4 else 1)  # x2 Value if in Midgame
             - (10 * num_moves_opponent)             # Penalty for Opponent Having Choices
             + 200 * (num_player - num_opponent))    # Value for Having More Pieces
 
@@ -202,10 +202,10 @@ class Morris:
         @return: List of Locations'''
         return [i for i in range(len(b)) if b[i] == self.pieces.EMPTY and Morris.__will_close_mill(b, i, self.pieces.player)]
 
-    def __pieces_blocking_mill(self, b: list[str]):
-        '''Calculates a List of Player Pieces Blocking a Mill
+    def __pieces_in_double_mill(self, b: list[str]):
+        '''Calculates a List of Player Pieces in a Double Mill
         @param b: Board
-        @return: List of Player Pieces blocking a Mill'''
+        @return: List of Player Pieces in a Double Mill'''
         return [a for i in range(len(b)) if b[i] == self.pieces.opponent for a in Morris.__neighbors(i) if b[a] == self.pieces.player and
         [i for i in Morris.__neighbors(a) if b[i] == self.pieces.player and not Morris.__will_close_mill(b, a, self.pieces.player)]]
 
