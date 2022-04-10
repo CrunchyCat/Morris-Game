@@ -2,7 +2,12 @@ CS 6364.501 Artificial Intelligence - Project
 Caleb Hoff (crh170230)
 31 March 2022
 
-Files Included
+Tournament Improvements
+Code is cut down & modified for greater efficiency.
+The faster the code can run, the more depth can be considered during the tournament.
+Also, a compiled version of the program using Cython (increasing speed by 43.5% on my machine) is included
+
+Files Included (for Submission)
 1)  README.txt                - This README File
 2)  MiniMaxOpening.py         - Makes a Move for White with MiniMax Algorithm in Opening Phase of Morris Game
 3)  MiniMaxOpeningBlack.py    - Makes a Move for Black with MiniMax Algorithm in Opening Phase of Morris Game

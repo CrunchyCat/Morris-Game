@@ -1,0 +1,7 @@
+.vscode/
+build/
+Tournament/TournamentTrainer.c
+Tournament/TournamentTrainer.exp
+Tournament/TournamentTrainer.lib
+Tournament/TournamentTrainer.obj
+Tournament/__pycache__/
