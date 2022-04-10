@@ -5,7 +5,7 @@
 
 # Input Parameters
 BOARD_NAME = "boards/board_empty.txt"   # Starting Board to Use
-ITERATIONS = 3                          # Number of Games to Play (Should be Odd #, Start First 1/2 the Time)
+ITERATIONS = 2                          # Number of Games to Play (Should be Odd #, Start First 1/2 the Time)
 MAX_MOVES = 1_000                       # Maximum # of Moves to Make Per Game
 NUM_PIECES = 16                         # Total Pieces to Play before Midgame Phase (2 x # Pieces per Player)
 
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     board_start = [i for i in open(BOARD_NAME, "r").read().strip()]
 
     # Play Games
-    for i_game in range(1, ITERATIONS):
+    for i_game in range(1, ITERATIONS + 1):
         board_state = (0, board_start)
         turn_white = start_white = i_game % 2 == 0  # Alternate Starting Player
         print("-----------------------------------{0:10s}-----------------------------------".format("Game #" + str(i_game)))
