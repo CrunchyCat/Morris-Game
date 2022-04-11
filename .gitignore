@@ -1,7 +1,12 @@
+# VS Code Files
 .vscode/
-build/
-Tournament/TournamentTrainer.c
-Tournament/TournamentTrainer.exp
-Tournament/TournamentTrainer.lib
-Tournament/TournamentTrainer.obj
+
+# Python Bytecode
+Submission/__pycache__/
 Tournament/__pycache__/
+
+# Compiled Python Code
+build/
+*.pyd
+*.pyc
+*.pyo
