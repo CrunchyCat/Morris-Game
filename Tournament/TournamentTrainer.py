@@ -113,7 +113,7 @@ class Morris:
     # @param b: Board
     # @param is_opening   True: Opening, False: Not Opening
     # @return: Evaluation of the Board
-    def __static_estimation_improved(self, b: str, is_opening: bool) -> int:
+    def __static_estimation_OLD(self, b: str, is_opening: bool) -> int:
         num_player = b.count(self.PLAYER)
         num_opponent = b.count(self.OPPONENT)
         if is_opening: # Opening Estimation
@@ -149,6 +149,88 @@ class Morris:
                 + 1728 * (1 if is_win else -1 if is_loss else 0)
         )   # Value for Having More Pieces
     
+    # Static Estimation of the Board (Improved, Fast)
+    # @param b: Board
+    # @param is_opening   True: Opening, False: Not Opening
+    # @return: Evaluation of the Board 
+    def __static_estimation_improved(self, b: str, is_opening: bool) -> int:
+        # Features to Calculate
+        num_pieces_opponent = b.count(self.OPPONENT)
+        num_pieces_player = b.count(self.PLAYER)
+        if not is_opening:
+            if num_pieces_opponent < 3: return MAX_SIZE # Stop if Player Won
+            if num_pieces_player < 3: return MIN_SIZE   # Stop if Player Lost
+        num_moves_player = 0
+        num_moves_opponent = 0
+        num_pieces_mill_player = 0
+        num_pieces_mill_opponent = 0
+        num_pieces_blocked_player = 0
+        num_pieces_blocked_opponent = 0
+        num_pieces_premill_player = 0
+        num_pieces_premill_opponent = 0
+        num_double_premill_player = 0
+        num_double_premill_opponent = 0
+        # num_double_mill_player = 0 #TODO: Calculate These Features
+        # num_double_mill_opponent = 0
+        
+        # Feature Calculation
+        for pos in range(len(b)):
+            if b[pos] == self.PLAYER:
+                if will_close_mill(b, pos, self.PLAYER):
+                    num_pieces_mill_player += 1
+                elif len([j for j in neighbors(pos) if b[j] == self.PLAYER]) > 1:
+                    num_double_premill_player += 1
+                if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                    num_pieces_blocked_player += 1
+                if not is_opening:
+                    for i in [i for i in (range(len(b)) if num_pieces_player == 3 else neighbors(pos)) if b[i] == self.EMPTY]:
+                        b_temp = b[:pos] + self.EMPTY + b[pos+1:]
+                        num_moves_player += len(self.__generate_remove(b_temp[:i] + self.PLAYER + b_temp[i+1:])) if will_close_mill(b, i, self.PLAYER) else 1
+            elif b[pos] == self.OPPONENT:
+                if will_close_mill(b, pos, self.OPPONENT):
+                    num_pieces_mill_opponent += 1
+                elif len([j for j in neighbors(pos) if b[j] == self.OPPONENT]) > 1:
+                    num_double_premill_opponent += 1
+                if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                    num_pieces_blocked_opponent += 1
+                if not is_opening:
+                    for i in [i for i in (range(len(b)) if num_pieces_opponent == 3 else neighbors(pos)) if b[i] == self.EMPTY]:
+                        b_temp = b[:pos] + self.EMPTY + b[pos+1:]
+                        num_moves_opponent += len(self.__generate_remove(b_temp[:i] + self.OPPONENT + b_temp[i+1:])) if will_close_mill(b, i, self.OPPONENT) else 1
+            elif b[pos] == self.EMPTY:
+                if will_close_mill(b, pos, self.PLAYER):
+                    num_pieces_premill_player += 1
+                elif will_close_mill(b, pos, self.OPPONENT):
+                    num_pieces_premill_opponent += 1
+                if is_opening:
+                    num_moves_player += len(self.__generate_remove(b[:pos] + self.PLAYER + b[pos+1:])) if will_close_mill(b, pos, self.PLAYER) else 1
+                    num_moves_opponent += len(self.__generate_remove(b[:pos] + self.OPPONENT + b[pos+1:])) if will_close_mill(b, pos, self.OPPONENT) else 1
+
+        # Static Estimation Features
+        if is_opening: # Opening Estimation
+            return (
+                18 * (num_pieces_mill_player - num_pieces_mill_opponent)
+                + 1 * (num_pieces_opponent - num_pieces_opponent)
+                + 1 * (num_pieces_player - num_pieces_opponent)
+                + 5 * (num_pieces_premill_player - num_pieces_premill_opponent)
+                + 7 * (num_double_premill_player - num_double_premill_opponent)
+            )
+        if num_moves_opponent == 0:
+            return MAX_SIZE
+        if num_pieces_player == 3:
+            return ( # Endgame Estimation
+                8 * (num_pieces_premill_player - num_pieces_premill_opponent)
+                + 1 * (num_double_premill_player - num_double_premill_opponent)
+                + 95 * (1 if num_moves_opponent == 0 else -1 if num_moves_player == 0 else 0)
+            )
+        return ( # Midgame Estimation
+                5 * (num_pieces_mill_player - num_pieces_mill_opponent)
+                + 10 * (num_pieces_blocked_opponent - num_pieces_blocked_player)
+                + 17 * (num_pieces_player - num_pieces_opponent)
+                # + 8 * # of Double Mills
+                + 1728 * (1 if num_moves_opponent else -1 if num_moves_player == 0 else 0)
+        )
+    
     # Inverts the Board (player <-> opponent)
     # @param b: Board
     # @return: Inverted Board
@@ -170,7 +252,9 @@ class Morris:
     # @param p: Piece
     # @return: # of Pieces Blocked
     def __num_pieces_blocked(self, b: str, p: str) -> int:
-        return b.count(p) - len(set([i for i in range(len(b)) if b[i] == p for j in neighbors(i) if b[j] == self.EMPTY]))
+        return b.count(p) - len(set(
+            [i for i in range(len(b)) if b[i] == p for j in neighbors(i) if b[j] == self.EMPTY]
+        ))
 
     # Calculates a List of Locations that would Complete a Mill
     # @param b: Board
