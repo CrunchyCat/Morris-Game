@@ -119,10 +119,10 @@ class Morris:
         if is_opening: # Opening Estimation
             return (
                 # +18 if Mill is Closed, -18 if Opponent Mill Closed
-                26 * (self.__num_mills(b, self.PLAYER) - self.__num_mills(b, self.OPPONENT))
+                18 * (self.__num_mills(b, self.PLAYER) - self.__num_mills(b, self.OPPONENT))
                 + 1 * (self.__num_pieces_blocked(b , self.OPPONENT) - self.__num_pieces_blocked(b, self.PLAYER))
-                + 9 * (num_player - num_opponent)
-                + 10 * (len(self.__pieces_in_premill(b, self.PLAYER)) - len(self.__pieces_in_premill(b, self.OPPONENT)))
+                + 1 * (num_player - num_opponent)
+                + 5 * (len(self.__pieces_in_premill(b, self.PLAYER)) - len(self.__pieces_in_premill(b, self.OPPONENT)))
                 # + 7 * # of Difference in Double Premills
             )
         if num_opponent < 3:
@@ -136,17 +136,17 @@ class Morris:
         if num_player == 3: # Endgame Estimation
             return (
                 # +16 if Mill is Closed, -16 if Opponent Mill Closed
-                10 * (len(self.__pieces_in_premill(b, self.PLAYER)) - len(self.__pieces_in_premill(b, self.OPPONENT)))
+                8 * (len(self.__pieces_in_premill(b, self.PLAYER)) - len(self.__pieces_in_premill(b, self.OPPONENT)))
                 # + 1 * # of Difference in Double Premills
-                + 1190 * (1 if is_win else -1 if is_loss else 0)
+                + 95 * (1 if is_win else -1 if is_loss else 0)
             )
         return ( # Midgame Estimation
                 # +14 if Mill is Closed, -14 if Opponent Mill Closed
-                43 * (self.__num_mills(b, self.PLAYER) - self.__num_mills(b, self.OPPONENT))
+                14 * (self.__num_mills(b, self.PLAYER) - self.__num_mills(b, self.OPPONENT))
                 + 10 * (self.__num_pieces_blocked(b , self.OPPONENT) - self.__num_pieces_blocked(b, self.PLAYER))
-                + 11 * (num_player - num_opponent)
+                + 17 * (num_player - num_opponent)
                 # + 8 * # of Double Mills
-                + 1086 * (1 if is_win else -1 if is_loss else 0)
+                + 1728 * (1 if is_win else -1 if is_loss else 0)
         )   # Value for Having More Pieces
     
     # Inverts the Board (player <-> opponent)
