@@ -22,8 +22,8 @@ class Morris:
     # @param max_depth:   Maximum Depth of the Search
     # @param is_improved: True: Improved,          False: Standard
     def __init__(self, num_pieces: int, empty: str, player: str, opponent: str, max_depth: int, is_improved: bool):
-        self.NUM_PIECES = num_pieces + 1    # Number of Player Pieces to Play During Opening Game
-        self.moves_made = -1                # N-1 Moves Made (Used to Determine if in Opening Game)
+        self.NUM_PIECES = num_pieces        # Number of Player Pieces to Play During Opening Game
+        self.moves_made = 0                 # N-1 Moves Made (Used to Determine if in Opening Game)
         self.EMPTY = empty                  # Symbol for Empty Space
         self.PLAYER = player                # Symbol for the Player
         self.OPPONENT = opponent            # Symbol for the Opponent
@@ -45,11 +45,11 @@ class Morris:
     # @return: Tuple of (Board after Move, Static Evaluation of the Board)
     def __ab(self, b: str, depth: int=0, alpha=MIN_SIZE, beta=MAX_SIZE) -> tuple[int, str]:
         if depth >= self.MAX_DEPTH:
-            return (self.static_estimation(b, self.moves_made + int(depth / 2) < self.NUM_PIECES), b)
+            return (self.static_estimation(b, self.moves_made + int(depth / 2) <= self.NUM_PIECES), b)
         move_best: str = "RESIGN"
         if depth % 2 == 0: # If player #1
             eval_best = MIN_SIZE
-            for move in self.move(b, self.moves_made + int(depth / 2) < self.NUM_PIECES):
+            for move in self.move(b, self.moves_made + int(depth / 2) <= self.NUM_PIECES):
                 eval_temp = self.__ab(move, depth + 1, max(alpha, eval_best), beta)[0]
                 if eval_temp > eval_best:
                     eval_best = eval_temp
@@ -58,7 +58,7 @@ class Morris:
                     return (eval_best, move_best)
         else: # If Player #2
             eval_best = MAX_SIZE
-            for move in self.move(self.__invert_board(b), self.moves_made + int(depth / 2) < self.NUM_PIECES):
+            for move in self.move(self.__invert_board(b), self.moves_made + int(depth / 2) <= self.NUM_PIECES):
                 eval_temp = self.__ab(self.__invert_board(move), depth + 1, alpha, min(beta, eval_best))[0]
                 if eval_temp < eval_best:
                     eval_best = eval_temp
@@ -109,7 +109,7 @@ class Morris:
             return 10000
         return 1000 * (num_player - num_opponent) - num_moves_opponent
 
-    # Static Estimation of the Board (Improved)
+    # Static Estimation of the Board (Improved, Slow)
     # @param b: Board
     # @param is_opening   True: Opening, False: Not Opening
     # @return: Evaluation of the Board
@@ -150,6 +150,7 @@ class Morris:
         )   # Value for Having More Pieces
     
     # Static Estimation of the Board (Improved, Fast)
+    # #TODO: Make Faster by Separating Game Phases & Not Using __generate_remove
     # @param b: Board
     # @param is_opening   True: Opening, False: Not Opening
     # @return: Evaluation of the Board 
@@ -157,9 +158,9 @@ class Morris:
         # Features to Calculate
         num_pieces_opponent = b.count(self.OPPONENT)
         num_pieces_player = b.count(self.PLAYER)
-        if not is_opening:
-            if num_pieces_opponent < 3: return MAX_SIZE # Stop if Player Won
-            if num_pieces_player < 3: return MIN_SIZE   # Stop if Player Lost
+        # if not is_opening:
+        #     if num_pieces_opponent < 3: return MAX_SIZE # Stop if Player Won
+        #     if num_pieces_player < 3: return MIN_SIZE   # Stop if Player Lost
         num_moves_player = 0
         num_moves_opponent = 0
         num_pieces_mill_player = 0
@@ -209,26 +210,26 @@ class Morris:
         # Static Estimation Features
         if is_opening: # Opening Estimation
             return (
-                18 * (num_pieces_mill_player - num_pieces_mill_opponent)
+                9 * (num_pieces_mill_player - num_pieces_mill_opponent)
                 + 1 * (num_pieces_opponent - num_pieces_opponent)
-                + 1 * (num_pieces_player - num_pieces_opponent)
-                + 5 * (num_pieces_premill_player - num_pieces_premill_opponent)
-                + 7 * (num_double_premill_player - num_double_premill_opponent)
+                + 9 * (num_pieces_player - num_pieces_opponent)
+                + 4 * (num_pieces_premill_player - num_pieces_premill_opponent)
+                + 3 * (num_double_premill_player - num_double_premill_opponent)
             )
-        if num_moves_opponent == 0:
-            return MAX_SIZE
+        is_win = num_moves_opponent == 0 or num_pieces_opponent < 3
+        is_loss = num_moves_player == 0 or num_pieces_player < 3
         if num_pieces_player == 3:
             return ( # Endgame Estimation
-                8 * (num_pieces_premill_player - num_pieces_premill_opponent)
+                3 * (num_pieces_premill_player - num_pieces_premill_opponent)
                 + 1 * (num_double_premill_player - num_double_premill_opponent)
-                + 95 * (1 if num_moves_opponent == 0 else -1 if num_moves_player == 0 else 0)
+                + 1190 * (1 if is_win == 0 else -1 if is_loss == 0 else 0)
             )
         return ( # Midgame Estimation
-                5 * (num_pieces_mill_player - num_pieces_mill_opponent)
+                14 * (num_pieces_mill_player - num_pieces_mill_opponent)
                 + 10 * (num_pieces_blocked_opponent - num_pieces_blocked_player)
-                + 17 * (num_pieces_player - num_pieces_opponent)
-                # + 8 * # of Double Mills
-                + 1728 * (1 if num_moves_opponent else -1 if num_moves_player == 0 else 0)
+                + 11 * (num_pieces_player - num_pieces_opponent)
+                #TODO: + 8 * # of Double Mills
+                + 1086 * (1 if is_win else -1 if is_loss == 0 else 0)
         )
     
     # Inverts the Board (player <-> opponent)
@@ -308,14 +309,23 @@ def neighbors(loc: int) -> list[int]:
         18: [6, 15, 19],        19: [16, 18, 20],       20: [11, 17, 19]
     }[loc]
 
-import time #TODO: REMOVE TIMER
+# Challenge Another Player in Tournament
+# @param is_white: Whether the Player is White, or Black
+def challenge(is_white: bool):
+    player = Morris(NUM_PIECES, 'x', *(('W', 'B') if is_white else ('B', 'W')), 6, True)
+    while True:
+        board_state = player.play(input('BOARD: '))
+        print("BOARD: ", *board_state[1], sep='')
 
-if __name__ == "__main__":
+# Quickly Plays A Game between AI & AI (Improved)
+# Useful for Determining weights
+def train():
+    import time #TODO: REMOVE TIMER
     t1: float = time.time() #TODO: REMOVE TIMER START
 
     # Initialize White & Black Players
-    white = Morris(NUM_PIECES, 'x', 'W', 'B', 4, True)   # White Player
-    black = Morris(NUM_PIECES, 'x', 'B', 'W', 4, False)  # Black Player
+    white = Morris(NUM_PIECES, 'x', 'W', 'B', 3, True)   # White Player
+    black = Morris(NUM_PIECES, 'x', 'B', 'W', 3, False)  # Black Player
 
     # Store Win Counts
     wins_white: int = 0
@@ -326,9 +336,9 @@ if __name__ == "__main__":
 
     # Play Games
     for i_game in range(1, ITERATIONS):
+        white.moves_made = -1
+        black.moves_made = -1
         board_state = (0, board_start)
-        white.moves_made = 0
-        black.moves_made = 0
         print("{0:s}Game #{1:<4d}{0:s}\n   0) Start: {2:s}".format("-----------------------------------", i_game, board_start))
         for i_move in range(MAX_MOVES):
             turn_white = (i_game + i_move) % 2 == 1  # Alternate Starting Player
@@ -347,5 +357,9 @@ if __name__ == "__main__":
 
     # Print Aggregated Final Results
     print("{0:s}Final Results {0:s}\nWhite Wins:{1:d}\nBlack Wins:{2:d}".format("---------------------------------", wins_white, wins_black))
-
     print("Time Taken: %.8fs" % (time.time()-t1)) #TODO: REMOVE TIMER END
+
+# Main: Play a Tournament Game or Train
+if __name__=="__main__":
+    #challenge(True)
+    train()
