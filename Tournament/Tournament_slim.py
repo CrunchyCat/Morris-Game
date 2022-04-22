@@ -157,7 +157,7 @@ class Morris:
         if is_opening:
             return (    # Opening Estimation
                 9 * (num_pieces_mill_player - num_pieces_mill_opponent)
-                + 1 * (num_pieces_opponent - num_pieces_opponent)
+                + 1 * (num_pieces_blocked_opponent - num_pieces_blocked_player)
                 + 9 * (num_pieces_player - num_pieces_opponent)
                 + 4 * (num_pieces_premill_player - num_pieces_premill_opponent)
                 + 3 * (num_double_premill_player - num_double_premill_opponent)
@@ -226,10 +226,13 @@ def neighbors(loc: int) -> list[int]:
 if __name__=="__main__":
     # Input Parameters
     NUM_PIECES = 8
-    IS_WHITE = True
+    IS_WHITE = False
 
-    # Play Tournament
-    player = Morris(NUM_PIECES, 'x', *(('W', 'B') if IS_WHITE else ('B', 'W')), 1)
+    player = Morris(NUM_PIECES, 'x', *(('W', 'B') if IS_WHITE else ('B', 'W')), 6)
+    import time #TODO: REMOVE TIMER
     while True:
-        board_state = player.play(input('BOARD: '))
+        board = input('BOARD: ')
+        t1: float = time.time() #TODO: REMOVE TIMER START
+        board_state = player.play(board)
         print("BOARD: ", *board_state[1], sep='')
+        print("Time Taken: %.8fs" % (time.time()-t1)) #TODO: REMOVE TIMER END

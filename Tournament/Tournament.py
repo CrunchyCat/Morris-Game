@@ -211,7 +211,7 @@ class Morris:
         if is_opening: # Opening Estimation
             return (
                 9 * (num_pieces_mill_player - num_pieces_mill_opponent)
-                + 1 * (num_pieces_opponent - num_pieces_opponent)
+                + 1 * (num_pieces_blocked_opponent - num_pieces_blocked_player)
                 + 9 * (num_pieces_player - num_pieces_opponent)
                 + 4 * (num_pieces_premill_player - num_pieces_premill_opponent)
                 + 3 * (num_double_premill_player - num_double_premill_opponent)
