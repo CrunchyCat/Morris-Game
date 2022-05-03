@@ -204,9 +204,9 @@ class Morris:
                     num_pieces_premill_player += 1
                 if will_close_mill(b, pos, self.OPPONENT):
                     num_pieces_premill_opponent += 1
-                if is_opening:
-                    num_moves_player += len(self.__generate_remove(b[:pos] + self.PLAYER + b[pos+1:])) if will_close_mill(b, pos, self.PLAYER) else 1
-                    num_moves_opponent += len(self.__generate_remove(b[:pos] + self.OPPONENT + b[pos+1:])) if will_close_mill(b, pos, self.OPPONENT) else 1
+                # if is_opening: # Optimization 2: Speed up Estimation by Not Considering Number of Possible Moves for Opening
+                #     num_moves_player += self.__count_sub_moves(b[:pos] + self.PLAYER + b[pos+1:]) if will_close_mill(b, pos, self.PLAYER) else 1
+                #     num_moves_opponent += self.__count_sub_moves(b[:pos] + self.OPPONENT + b[pos+1:]) if will_close_mill(b, pos, self.OPPONENT) else 1
 
         # Static Estimation Features
         if is_opening: # Opening Estimation

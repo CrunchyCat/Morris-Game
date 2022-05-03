@@ -98,8 +98,8 @@ class Morris:
     # Generates all Removal Moves
     # @param b: Board
     # @return: List of Possible Moves
-    def __count_sub_moves(self, b: str) -> int:
-        return sum(1 for i in range(len(b)) if b[i] == self.OPPONENT and not will_close_mill(b, i, self.OPPONENT))
+    # def __count_sub_moves(self, b: str) -> int: # OPTIMIZATION 1: Don't Count # of Moves, Just Check that there are Moves
+    #     return sum(1 for i in range(len(b)) if b[i] == self.OPPONENT and not will_close_mill(b, i, self.OPPONENT))
     
     # Static Estimation of the Board
     # @param b: Board
@@ -109,8 +109,9 @@ class Morris:
         num_pieces_opponent = b.count(self.OPPONENT)
         num_pieces_player = b.count(self.PLAYER)
         is_endgame = num_pieces_player == 3
-        num_moves_player = 0
-        num_moves_opponent = 0
+        is_midgame = not is_opening and not is_endgame
+        # num_moves_player = 0 # OPTIMIZATION 1: Don't Count # of Moves, Just Check that there are Moves
+        # num_moves_opponent = 0 # OPTIMIZATION 1: Don't Count # of Moves, Just Check that there are Moves
         num_pieces_mill_player = 0
         num_pieces_mill_opponent = 0
         num_pieces_blocked_player = 0
@@ -127,33 +128,33 @@ class Morris:
             if b[pos] == self.PLAYER:
                 if will_close_mill(b, pos, self.PLAYER):
                     num_pieces_mill_player += 1
-                elif sum(1 for j in neighbors(pos) if b[j] == self.PLAYER) > 1:
+                elif not is_midgame and sum(1 for j in neighbors(pos) if b[j] == self.PLAYER) > 1:
                     num_pieces_double_premill_player += 1
                 if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
                     num_pieces_blocked_player += 1
-                if not is_opening:
-                    for i in [i for i in (range(len(b)) if is_endgame else neighbors(pos)) if b[i] == self.EMPTY]:
-                        b_temp = b[:pos] + self.EMPTY + b[pos+1:]
-                        num_moves_player += self.__count_sub_moves(b_temp[:i] + self.PLAYER + b_temp[i+1:]) if will_close_mill(b, i, self.PLAYER) else 1
+                # if not is_opening: # OPTIMIZATION 1: Don't Count # of Moves, Just Check that there are Moves
+                #     for i in [i for i in (range(len(b)) if is_endgame else neighbors(pos)) if b[i] == self.EMPTY]:
+                #         b_temp = b[:pos] + self.EMPTY + b[pos+1:]
+                #         num_moves_player += self.__count_sub_moves(b_temp[:i] + self.PLAYER + b_temp[i+1:]) if will_close_mill(b, i, self.PLAYER) else 1
             elif b[pos] == self.OPPONENT:
                 if will_close_mill(b, pos, self.OPPONENT):
                     num_pieces_mill_opponent += 1
-                elif sum(1 for j in neighbors(pos) if b[j] == self.OPPONENT) > 1:
+                elif not is_midgame and sum(1 for j in neighbors(pos) if b[j] == self.OPPONENT) > 1:
                     num_pieces_double_premill_opponent += 1
                 if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
                     num_pieces_blocked_opponent += 1
-                if not is_opening:
-                    for i in [i for i in (range(len(b)) if is_endgame else neighbors(pos)) if b[i] == self.EMPTY]:
-                        b_temp = b[:pos] + self.EMPTY + b[pos+1:]
-                        num_moves_opponent += self.__count_sub_moves(b_temp[:i] + self.OPPONENT + b_temp[i+1:]) if will_close_mill(b, i, self.OPPONENT) else 1
-            else:
+                # if not is_opening: # OPTIMIZATION 1: Don't Count # of Moves, Just Check that there are Moves
+                #     for i in [i for i in (range(len(b)) if is_endgame else neighbors(pos)) if b[i] == self.EMPTY]:
+                #         b_temp = b[:pos] + self.EMPTY + b[pos+1:]
+                #         num_moves_opponent += self.__count_sub_moves(b_temp[:i] + self.OPPONENT + b_temp[i+1:]) if will_close_mill(b, i, self.OPPONENT) else 1
+            else: # Empty Space
                 if will_close_mill(b, pos, self.PLAYER):
                     num_pieces_premill_player += 1
                 if will_close_mill(b, pos, self.OPPONENT):
                     num_pieces_premill_opponent += 1
-                if is_opening:
-                    num_moves_player += self.__count_sub_moves(b[:pos] + self.PLAYER + b[pos+1:]) if will_close_mill(b, pos, self.PLAYER) else 1
-                    num_moves_opponent += self.__count_sub_moves(b[:pos] + self.OPPONENT + b[pos+1:]) if will_close_mill(b, pos, self.OPPONENT) else 1
+                # if is_opening: # OPTIMIZATION 2: Don't Consider # of Possible Moves for Opening
+                #     num_moves_player += self.__count_sub_moves(b[:pos] + self.PLAYER + b[pos+1:]) if will_close_mill(b, pos, self.PLAYER) else 1
+                #     num_moves_opponent += self.__count_sub_moves(b[:pos] + self.OPPONENT + b[pos+1:]) if will_close_mill(b, pos, self.OPPONENT) else 1
 
         if is_opening:
             return (    # Opening Estimation
@@ -163,8 +164,10 @@ class Morris:
                 + 4 * (num_pieces_premill_player - num_pieces_premill_opponent)
                 + 3 * (num_pieces_double_premill_player - num_pieces_double_premill_opponent)
             )
-        is_win = num_moves_opponent == 0 or num_pieces_opponent < 3
-        is_loss = num_moves_player == 0 or num_pieces_player < 3
+        # is_win = num_moves_opponent == 0 or num_pieces_opponent < 3 # OPTIMIZATION 1: Don't Considering # of Possible Moves for Opening
+        # is_loss = num_moves_player == 0 or num_pieces_player < 3    # OPTIMIZATION 1: Don't Considering # of Possible Moves for Opening
+        is_win = num_pieces_blocked_opponent >= num_pieces_opponent or num_pieces_opponent < 3  # OPTIMIZATION 1: Not all are blocked?
+        is_loss = num_pieces_blocked_player >= num_pieces_player or num_pieces_player < 3       # OPTIMIZATION 1: Not all are blocked?
         if is_endgame:
             return (    # Endgame Estimation
                 3 * (num_pieces_premill_player - num_pieces_premill_opponent)
@@ -230,9 +233,9 @@ if __name__=="__main__":
     IS_WHITE = True
 
     player = Morris(NUM_PIECES, 'x', *(('W', 'B') if IS_WHITE else ('B', 'W')), 6)
-    import time #TODO: REMOVE TIMER
+    import time #TODO: REMOVE TIMER # xxxxxxxWxxxxxxxWxxxxB
     while True:
-        board = input('BOARD: ')
+        board = input('INPUT: ')
         t1: float = time.time() #TODO: REMOVE TIMER START
         board_state = player.play(board)
         print("BOARD: ", *board_state[1], sep='')
