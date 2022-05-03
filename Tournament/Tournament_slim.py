@@ -233,7 +233,7 @@ if __name__=="__main__":
     IS_WHITE = True
 
     player = Morris(NUM_PIECES, 'x', *(('W', 'B') if IS_WHITE else ('B', 'W')), 6)
-    import time #TODO: REMOVE TIMER # xxxxxxxWxxxxxxxWxxxxB
+    import time #TODO: REMOVE TIMER
     while True:
         board = input('INPUT: ')
         t1: float = time.time() #TODO: REMOVE TIMER START
