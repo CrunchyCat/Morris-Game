@@ -30,7 +30,7 @@ class Morris:
     # @param b:           Board
     # @param cache:       Dictionary of Cached Moves
     # @return: Tuple of (Board after Move, Static Evaluation of the Board)
-    def play(self, b: str, cache: dict[tuple[int,str]]={}) -> tuple[int, str]:
+    def play(self, b: str, cache: dict[tuple[int, str]]={}) -> tuple[int, str]:
         key = ('O' if self.moves_made < 8 else 'M') + (b if self.PLAYER == PIECES[0] else self.invert_board(b))
         self.moves_made += 1
         if key in cache:        # If Move is Cached, Retrieve
@@ -104,7 +104,7 @@ class Morris:
                 b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
                 L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b)) if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
         return L
-    
+
     # Static Estimation of the Board
     # @param b: Board
     # @param is_opening   True: Opening, False: Not Opening
@@ -346,7 +346,7 @@ if __name__=="__main__":
     # Load Moves Cache
     if READ_CACHE and exists(FILE_CACHE):
         with open(FILE_CACHE, 'rb') as f:
-            cache_moves: dict[tuple[int,str]] = pickle.load(f)
+            cache_moves: dict[tuple[int, str]] = pickle.load(f)
     else:
         cache_moves = {}
 
