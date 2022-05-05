@@ -299,7 +299,7 @@ def build_cache(max_moves: int):
         print("{0:s}Game #{1:<4d}{0:s}\n   0) Start: {2:s}".format("-----------------------------------", i_game, board_start))
         for i_move in range(max_moves):
             t1 = time.time()
-            board_state = (white if i_move % 2 else black).play(board_state[1], cache_moves) # Play Move
+            board_state = (black if i_move % 2 else white).play(board_state[1], cache_moves) # Play Move
 
             # Write Moves Cache to Disk
             if WRITE_CACHE:
@@ -307,9 +307,9 @@ def build_cache(max_moves: int):
                     pickle.dump(cache_moves, f, protocol=pickle.HIGHEST_PROTOCOL)
 
             # Print Results
-            print("{0:4d}) {1:s}: {2:s} Time: {3:.8f}s".format(i_move + 1, "White" if i_move % 2 else "Black", board_state[1], time.time()-t1))
+            print("{0:4d}) {1:s}: {2:s} Time: {3:.8f}s".format(i_move + 1, "Black" if i_move % 2 else "White", board_state[1], time.time()-t1))
             if board_state[0] >= MAX_SIZE or board_state[0] <= MIN_SIZE:
-                print("-----------> {0:s} WINS!".format("WHITE" if i_move % 2 else "BLACK"))
+                print("-----------> {0:s} WINS!".format("BLACK" if i_move % 2 else "WHITE"))
                 break
         else:
             print("-----------> MOVE LIMIT REACHED!")
