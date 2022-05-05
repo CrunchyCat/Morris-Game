@@ -6,6 +6,7 @@
 PIECES = ('W', 'B', 'x')        # Pieces (Primary, Secondary, Empty)
 NUM_PIECES = 8                  # Number of Pieces Each Player Has
 READ_CACHE = True               # Load Cached Moves from File
+WRITE_CACHE = True              # Write Moves to Cache File
 FILE_CACHE = "moves_cache.pkl"  # Moves Cache File
 
 # Constants
@@ -109,8 +110,8 @@ class Morris:
     # @param is_opening   True: Opening, False: Not Opening
     # @return: Evaluation of the Board 
     def __static_estimation(self, b: str, is_opening: bool) -> int:
-        num_pieces_opponent = b.count(self.OPPONENT)
         num_pieces_player = b.count(self.PLAYER)
+        num_pieces_opponent = b.count(self.OPPONENT)
         is_endgame = num_pieces_player == 3
         is_midgame = not is_opening and not is_endgame
         # num_moves_player = 0 # OPTIMIZATION 2: Don't Count # of Moves, Just Check that there are Moves
@@ -301,8 +302,9 @@ def build_cache(max_moves: int):
             board_state = (white if i_move % 2 else black).play(board_state[1], cache_moves) # Play Move
 
             # Write Moves Cache to Disk
-            with open(FILE_CACHE, 'wb') as f:
-                pickle.dump(cache_moves, f, protocol=pickle.HIGHEST_PROTOCOL)
+            if WRITE_CACHE:
+                with open(FILE_CACHE, 'wb') as f:
+                    pickle.dump(cache_moves, f, protocol=pickle.HIGHEST_PROTOCOL)
 
             # Print Results
             print("{0:4d}) {1:s}: {2:s} Time: {3:.8f}s".format(i_move + 1, "White" if i_move % 2 else "Black", board_state[1], time.time()-t1))
