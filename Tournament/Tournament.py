@@ -287,7 +287,7 @@ def build_cache(max_moves: int):
 
     # Make List of Starting Boards
     boards_starting = [BOARD_EMPTY]
-    for i in range(len(BOARD_EMPTY)):
+    for i in range(len(BOARD_EMPTY) - 1):
         for j in range(i + 1, len(BOARD_EMPTY)):
             boards_starting += [BOARD_EMPTY[:i] + PIECES[0] + BOARD_EMPTY[i+1:j] + PIECES[1] + BOARD_EMPTY[j+1:],
                                 BOARD_EMPTY[:i] + PIECES[1] + BOARD_EMPTY[i+1:j] + PIECES[0] + BOARD_EMPTY[j+1:]]
