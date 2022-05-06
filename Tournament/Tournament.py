@@ -112,19 +112,16 @@ class Morris:
     def __static_estimation(self, b: str, is_opening: bool) -> int:
         num_pieces_player = b.count(self.PLAYER)
         num_pieces_opponent = b.count(self.OPPONENT)
-        is_endgame = num_pieces_player == 3
-        is_midgame = not is_opening and not is_endgame
-        # num_moves_player = 0 # OPTIMIZATION 2: Don't Count # of Moves, Just Check that there are Moves
-        # num_moves_opponent = 0 # OPTIMIZATION 2: Don't Count # of Moves, Just Check that there are Moves
-        num_pieces_mill_player = 0
+        is_midgame = not is_opening and num_pieces_player != 3
+        num_pieces_mill_player = 0              # Player pieces participating in a mill
         num_pieces_mill_opponent = 0
-        num_pieces_blocked_player = 0
+        num_pieces_blocked_player = 0           # Player pieces with no adjacent empty pieces
         num_pieces_blocked_opponent = 0
-        num_pieces_premill_player = 0
+        num_pieces_premill_player = 0           # Empty spots where player would get a mill
         num_pieces_premill_opponent = 0
-        num_pieces_double_premill_player = 0
+        num_pieces_double_premill_player = 0    # Player pieces with 2 (or 3) adjacent player pieces, but no mill
         num_pieces_double_premill_opponent = 0
-        num_double_mill_player = 0
+        num_double_mill_player = 0              # Player pieces in 2 (or 3) mills at once
         num_double_mill_opponent = 0
         
         # Feature Calculation
@@ -134,35 +131,24 @@ class Morris:
                     num_pieces_mill_player += 1
                     if will_close_double_mill(b, pos, self.PLAYER):
                         num_double_mill_player += 1
-                if not is_midgame and sum(1 for j in neighbors_long(pos) if b[j] == self.PLAYER) > 1:
+                elif not is_midgame and sum(1 for j in neighbors_long(pos) if b[j] == self.PLAYER) > 1:
                     num_pieces_double_premill_player += 1
                 if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
                     num_pieces_blocked_player += 1
-                # if not is_opening: # OPTIMIZATION 2: Don't Count # of Moves, Just Check that there are Moves
-                #     for i in [i for i in (range(len(b)) if is_endgame else neighbors(pos)) if b[i] == self.EMPTY]:
-                #         b_temp = b[:pos] + self.EMPTY + b[pos+1:]
-                #         num_moves_player += self.__count_sub_moves(b_temp[:i] + self.PLAYER + b_temp[i+1:]) if will_close_mill(b, i, self.PLAYER) else 1
             elif b[pos] == self.OPPONENT:
                 if will_close_mill(b, pos, self.OPPONENT):
                     num_pieces_mill_opponent += 1
                     if will_close_double_mill(b, pos, self.OPPONENT):
                         num_double_mill_opponent += 1
-                if not is_midgame and sum(1 for j in neighbors_long(pos) if b[j] == self.OPPONENT) > 1:
+                elif not is_midgame and sum(1 for j in neighbors_long(pos) if b[j] == self.OPPONENT) > 1:
                     num_pieces_double_premill_opponent += 1
                 if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
                     num_pieces_blocked_opponent += 1
-                # if not is_opening: # OPTIMIZATION 2: Don't Count # of Moves, Just Check that there are Moves
-                #     for i in [i for i in (range(len(b)) if is_endgame else neighbors(pos)) if b[i] == self.EMPTY]:
-                #         b_temp = b[:pos] + self.EMPTY + b[pos+1:]
-                #         num_moves_opponent += self.__count_sub_moves(b_temp[:i] + self.OPPONENT + b_temp[i+1:]) if will_close_mill(b, i, self.OPPONENT) else 1
             else: # Empty Space
                 if will_close_mill(b, pos, self.PLAYER):
                     num_pieces_premill_player += 1
                 if will_close_mill(b, pos, self.OPPONENT):
                     num_pieces_premill_opponent += 1
-                # if is_opening: # OPTIMIZATION 1: Don't Consider # of Possible Moves for Opening
-                #     num_moves_player += self.__count_sub_moves(b[:pos] + self.PLAYER + b[pos+1:]) if will_close_mill(b, pos, self.PLAYER) else 1
-                #     num_moves_opponent += self.__count_sub_moves(b[:pos] + self.OPPONENT + b[pos+1:]) if will_close_mill(b, pos, self.OPPONENT) else 1
 
         if is_opening:
             return (    # Opening Estimation
@@ -172,22 +158,20 @@ class Morris:
                 + 4 * (num_pieces_premill_player - num_pieces_premill_opponent)
                 + 3 * (num_pieces_double_premill_player - num_pieces_double_premill_opponent)
             )
-        # is_win = num_moves_opponent == 0 or num_pieces_opponent < 3 # OPTIMIZATION 2: Don't Considering # of Possible Moves for Opening
-        # is_loss = num_moves_player == 0 or num_pieces_player < 3    # OPTIMIZATION 2: Don't Considering # of Possible Moves for Opening
-        is_win = num_pieces_blocked_opponent >= num_pieces_opponent or num_pieces_opponent < 3  # OPTIMIZATION 2: Not all are blocked?
-        is_loss = num_pieces_blocked_player >= num_pieces_player or num_pieces_player < 3       # OPTIMIZATION 2: Not all are blocked?
-        if is_endgame:
-            return (    # Endgame Estimation
-                3 * (num_pieces_premill_player - num_pieces_premill_opponent)
-                + 1 * (num_pieces_double_premill_player - num_pieces_double_premill_opponent)
-                + 1190 * (1 if is_win else -1 if is_loss else 0)
+        is_win = num_pieces_blocked_opponent >= num_pieces_opponent or num_pieces_opponent < 3
+        is_loss = num_pieces_blocked_player >= num_pieces_player or num_pieces_player < 3
+        if is_midgame:
+            return (    # Midgame Estimation
+                    14 * (num_pieces_mill_player - num_pieces_mill_opponent)
+                    + 10 * (num_pieces_blocked_opponent - num_pieces_blocked_player)
+                    + 11 * (num_pieces_player - num_pieces_opponent)
+                    + 8 * (num_double_mill_player - num_double_mill_opponent)
+                    + 1086 * (1 if is_win else -1 if is_loss else 0)
             )
-        return (        # Midgame Estimation
-                14 * (num_pieces_mill_player - num_pieces_mill_opponent)
-                + 10 * (num_pieces_blocked_opponent - num_pieces_blocked_player)
-                + 11 * (num_pieces_player - num_pieces_opponent)
-                + 8 * (num_double_mill_player - num_double_mill_opponent)
-                + 1086 * (1 if is_win else -1 if is_loss else 0)
+        return (        # Endgame Estimation
+            3 * (num_pieces_premill_player - num_pieces_premill_opponent)
+            + 1 * (num_pieces_double_premill_player - num_pieces_double_premill_opponent)
+            + 1190 * (1 if is_win else -1 if is_loss else 0)
         )
 
 # Returns whether a Piece at Location loc will Close a Mill
