@@ -30,7 +30,7 @@ class Morris:
     # @param b:           Board
     # @param cache:       Dictionary of Cached Moves
     # @return: Tuple of (Board after Move, Static Evaluation of the Board)
-    def play(self, b: str, cache: dict[tuple[int,str]]={}) -> tuple[int, str]:
+    def play(self, b: str, cache: dict[tuple[int, str]]={}) -> tuple[int, str]:
         key = ('O' if self.moves_made < 8 else 'M') + (b if self.PLAYER == PIECES[0] else self.invert_board(b))
         self.moves_made += 1
         if key in cache:        # If Move is Cached, Retrieve
@@ -105,6 +105,10 @@ class Morris:
                 L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b)) if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
         return L
 
+    # Static Estimation of the Board
+    # @param b: Board
+    # @param is_opening   True: Opening, False: Not Opening
+    # @return: Evaluation of the Board 
     def __static_estimation(self, b: str, is_opening: bool) -> int:
         num_pieces_player = b.count(self.PLAYER)
         num_pieces_opponent = b.count(self.OPPONENT)
@@ -310,7 +314,7 @@ def build_cache(max_moves: int):
 
     # Make List of Starting Boards
     boards_starting = [BOARD_EMPTY]
-    for i in range(len(BOARD_EMPTY)):
+    for i in range(len(BOARD_EMPTY) - 1):
         for j in range(i + 1, len(BOARD_EMPTY)):
             boards_starting += [BOARD_EMPTY[:i] + PIECES[0] + BOARD_EMPTY[i+1:j] + PIECES[1] + BOARD_EMPTY[j+1:],
                                 BOARD_EMPTY[:i] + PIECES[1] + BOARD_EMPTY[i+1:j] + PIECES[0] + BOARD_EMPTY[j+1:]]
@@ -322,7 +326,7 @@ def build_cache(max_moves: int):
         print("{0:s}Game #{1:<4d}{0:s}\n   0) Start: {2:s}".format("-----------------------------------", i_game, board_start))
         for i_move in range(max_moves):
             t1 = time.time()
-            board_state = (white if i_move % 2 else black).play(board_state[1], cache_moves) # Play Move
+            board_state = (black if i_move % 2 else white).play(board_state[1], cache_moves) # Play Move
 
             # Write Moves Cache to Disk
             if WRITE_CACHE:
@@ -330,9 +334,9 @@ def build_cache(max_moves: int):
                     pickle.dump(cache_moves, f, protocol=pickle.HIGHEST_PROTOCOL)
 
             # Print Results
-            print("{0:4d}) {1:s}: {2:s} Time: {3:.8f}s".format(i_move + 1, "White" if i_move % 2 else "Black", board_state[1], time.time()-t1))
+            print("{0:4d}) {1:s}: {2:s} Time: {3:.8f}s".format(i_move + 1, "Black" if i_move % 2 else "White", board_state[1], time.time()-t1))
             if board_state[0] >= MAX_SIZE or board_state[0] <= MIN_SIZE:
-                print("-----------> {0:s} WINS!".format("WHITE" if i_move % 2 else "BLACK"))
+                print("-----------> {0:s} WINS!".format("BLACK" if i_move % 2 else "WHITE"))
                 break
         else:
             print("-----------> MOVE LIMIT REACHED!")
@@ -369,7 +373,7 @@ if __name__=="__main__":
     # Load Moves Cache
     if READ_CACHE and exists(FILE_CACHE):
         with open(FILE_CACHE, 'rb') as f:
-            cache_moves: dict[tuple[int,str]] = pickle.load(f)
+            cache_moves: dict[tuple[int, str]] = pickle.load(f)
     else:
         cache_moves = {}
 
