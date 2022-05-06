@@ -68,19 +68,20 @@ class Morris:
         return (eval_best, move_best)
 
     # Generates all Moving Moves for Player
+    # TODO: 25% Speedup by Reversing Iteration (Like in Opponent)
     # @param b: Board
     # @param is_opening   True: Opening, False: Not Opening
     # @return: List of Possible Moves
     def move_player(self, b: str, is_opening: bool) -> list[str]:
         L = []
-        num_player = b.count(self.PLAYER)
         if is_opening:
             for i in [i for i in range(len(b)) if b[i] == self.EMPTY]:
                 b_temp = b[:i] + self.PLAYER + b[i+1:]
                 L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b)) if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b, i, self.PLAYER) else [b_temp]
             return L
+        is_endgame = b.count(self.PLAYER) == 3
         for o in [i for i in range(len(b)) if b[i] == self.PLAYER]:
-            for i in [i for i in (range(len(b)) if num_player == 3 else neighbors(o)) if b[i] == self.EMPTY]:
+            for i in [i for i in (range(len(b)) if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
                 b_temp = b[:i] + self.PLAYER + b[i+1:]          # Add a Piece to Board at Location i
                 b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
                 L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b)) if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b, i, self.PLAYER) else [b_temp]
@@ -92,17 +93,17 @@ class Morris:
     # @return: List of Possible Moves
     def move_opponent(self, b: str, is_opening: bool) -> list[str]:
         L = []
-        num_opponent = b.count(self.OPPONENT)
         if is_opening:
-            for i in [i for i in range(len(b)) if b[i] == self.EMPTY]:
+            for i in [i for i in range(len(b) - 1, -1, -1) if b[i] == self.EMPTY]:
                 b_temp = b[:i] + self.OPPONENT + b[i+1:]
-                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b)) if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
+                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b) - 1, -1, -1) if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
             return L
-        for o in [i for i in range(len(b)) if b[i] == self.OPPONENT]:
-            for i in [i for i in (range(len(b)) if num_opponent == 3 else neighbors(o)) if b[i] == self.EMPTY]:
+        is_endgame = b.count(self.OPPONENT) == 3
+        for o in [i for i in range(len(b) - 1, -1, -1) if b[i] == self.OPPONENT]:
+            for i in [i for i in (range(len(b) - 1, -1, -1) if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
                 b_temp = b[:i] + self.OPPONENT + b[i+1:]        # Add a Piece to Board at Location i
                 b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
-                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b)) if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
+                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range(len(b) - 1, -1, -1) if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
         return L
 
     # Static Estimation of the Board
