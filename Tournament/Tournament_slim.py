@@ -1,13 +1,16 @@
 # Caleb Hoff (crh170230)
 # CS 6364.501 Artificial Intelligence - Project (Tournament Slim/Fast Version)
-# Modified Version to Decrease Memory Usage & Increase Speed (See Submission/MorrisGame.py)
+# Modified Version to Increase Speed (See Submission/MorrisGame.py)
+
+from functools import lru_cache
 
 # Configuration
 PIECES = ('W', 'B', 'x')        # Pieces (Primary, Secondary, Empty)
 NUM_PIECES = 8                  # Number of Pieces Each Player Has
-READ_CACHE = True               # Load Cached Moves from File
-WRITE_CACHE = True              # Write Moves to Cache File
-FILE_CACHE = "moves_cache.pkl"  # Moves Cache File
+CACHE_EST = 225_000             # Size of Estimations Cache (37,450: ~1GB, None: No Caching)
+READ_CACHE = False               # Load Moves from Moves Cache File
+WRITE_CACHE = False              # Write Moves to Moves Cache File
+FILE_CACHE = "moves_cache.pkl"  # Filename of Moves Cache File
 
 # Constants
 BOARD_EMPTY = PIECES[2] * 21    # Starting Board: "xxxxxxxxxxxxxxxxxxxxx"
@@ -17,7 +20,7 @@ MIN_SIZE, MAX_SIZE = -2147483647, 2147483647
 class Morris:
     # Configures the Game Parameters
     # @param num_pieces:  # of Pieces to Play During Opening Game
-    # @param empty:       Symbol for Empty Space 
+    # @param empty:       Symbol for Empty Space
     # @param player:      Symbol for the Player
     # @param opponent:    Symbol for the Opponent
     # @param max_depth:   Maximum Depth of the Search
@@ -30,15 +33,15 @@ class Morris:
     # @param b:           Board
     # @param cache:       Dictionary of Cached Moves
     # @return: Tuple of (Board after Move, Static Evaluation of the Board)
-    def play(self, b: str, cache: dict[tuple[int, str]]={}) -> tuple[int, str]:
+    def play(self, b: str, cache: dict[tuple[int, str]]={}, use_cache=True) -> tuple[int, str]:
         key = ('O' if self.moves_made < 8 else 'M') + (b if self.PLAYER == PIECES[0] else self.invert_board(b))
         self.moves_made += 1
-        if key in cache:        # If Move is Cached, Retrieve
+        if key in cache and use_cache:  # If Move is Cached, Retrieve
             return cache[key] if self.PLAYER == PIECES[0] else (cache[key][0], self.invert_board(cache[key][1]))
-        result = self.__ab(b)   # Else, Generate Move
+        result = self.__ab(b)           # Else, Generate Move
         cache[key] = result if self.PLAYER == PIECES[0] else (result[0], self.invert_board(result[1]))
-        return result           # Return Move
-    
+        return result                   # Return Move
+
     # Alpha-Beta Pruning Algorithm
     # @param b:           Board
     # @param depth:       Current Depth of the Search
@@ -49,69 +52,56 @@ class Morris:
         if depth >= self.MAX_DEPTH:
             return (self.__static_estimation(b, self.moves_made + depth // 2 <= self.NUM_PIECES), b)
         move_best: str = "" # Empty String: No Best Move
+        moves_possible = []
         if depth % 2 == 0: # If player #1
+            range_asc = range(len(b)) # Backwards Faster, but Moves were Cached for Forward ¯\_(ツ)_/¯
+            if self.moves_made + depth // 2 <= self.NUM_PIECES:
+                for i in [i for i in range_asc if b[i] == self.EMPTY]:
+                    b_temp = b[:i] + self.PLAYER + b[i+1:]
+                    moves_possible += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_asc if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b_temp, i, self.PLAYER) else [b_temp]
+            else:
+                is_endgame = b.count(self.PLAYER) == 3
+                for o in [i for i in range_asc if b[i] == self.PLAYER]:
+                    for i in [i for i in (range_asc if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
+                        b_temp = b[:i] + self.PLAYER + b[i+1:]          # Add a Piece to Board at Location i
+                        b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
+                        moves_possible += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_asc if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b_temp, i, self.PLAYER) else [b_temp]
             eval_best = MIN_SIZE
-            for move in self.move_player(b, self.moves_made + depth // 2 <= self.NUM_PIECES):
+            for move in moves_possible:
                 eval = self.__ab(move, depth + 1, max(alpha, eval_best), beta)[0]
                 if eval > eval_best:
-                    eval_best, move_best = eval, move
+                    eval_best = eval
+                    move_best = move
                 if eval_best >= beta:
                     return (eval_best, move_best)
         else: # If Player #2
+            range_dsc = range(len(b) - 1, -1, -1) # Backwards, Allows More Pruning, Bottom of Board is Bad
+            if self.moves_made + depth // 2 <= self.NUM_PIECES:
+                for i in [i for i in range_dsc if b[i] == self.EMPTY]:
+                    b_temp = b[:i] + self.OPPONENT + b[i+1:]
+                    moves_possible += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_dsc if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b_temp, i, self.OPPONENT) else [b_temp]
+            else:
+                is_endgame = b.count(self.OPPONENT) == 3
+                for o in [i for i in range_dsc if b[i] == self.OPPONENT]:
+                    for i in [i for i in (range_dsc if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
+                        b_temp = b[:i] + self.OPPONENT + b[i+1:]        # Add a Piece to Board at Location i
+                        b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
+                        moves_possible += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_dsc if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b_temp, i, self.OPPONENT) else [b_temp]
             eval_best = MAX_SIZE
-            for move in self.move_opponent(b, self.moves_made + depth // 2 <= self.NUM_PIECES):
+            for move in moves_possible:
                 eval = self.__ab(move, depth + 1, alpha, min(beta, eval_best))[0]
                 if eval < eval_best:
-                    eval_best, move_best = eval, move
+                    eval_best = eval
+                    move_best = move
                 if eval_best <= alpha:
                     return (eval_best, move_best)
         return (eval_best, move_best)
 
-    # Generates all Moving Moves for Player
-    # TODO: 25% Speedup by Reversing Iteration (Like in Opponent)
-    # @param b: Board
-    # @param is_opening   True: Opening, False: Not Opening
-    # @return: List of Possible Moves
-    def move_player(self, b: str, is_opening: bool) -> list[str]:
-        L = []
-        range_board = range(len(b)) # Backwards Faster, but Moves were Cached for Forward ¯\_(ツ)_/¯
-        if is_opening:
-            for i in [i for i in range_board if b[i] == self.EMPTY]:
-                b_temp = b[:i] + self.PLAYER + b[i+1:]
-                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_board if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b, i, self.PLAYER) else [b_temp]
-            return L
-        is_endgame = b.count(self.PLAYER) == 3
-        for o in [i for i in range_board if b[i] == self.PLAYER]:
-            for i in [i for i in (range_board if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
-                b_temp = b[:i] + self.PLAYER + b[i+1:]          # Add a Piece to Board at Location i
-                b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
-                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_board if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b, i, self.PLAYER) else [b_temp]
-        return L
-
-    # Generates all Moving Moves for Opponent
-    # @param b: Board
-    # @param is_opening   True: Opening, False: Not Opening
-    # @return: List of Possible Moves
-    def move_opponent(self, b: str, is_opening: bool) -> list[str]:
-        L = []
-        range_board = range(len(b) - 1, -1, -1) # Backwards Faster: Allows More Pruning, Bottom of Board is Bad
-        if is_opening:
-            for i in [i for i in range_board if b[i] == self.EMPTY]:
-                b_temp = b[:i] + self.OPPONENT + b[i+1:]
-                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_board if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
-            return L
-        is_endgame = b.count(self.OPPONENT) == 3
-        for o in [i for i in range_board if b[i] == self.OPPONENT]:
-            for i in [i for i in (range_board if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
-                b_temp = b[:i] + self.OPPONENT + b[i+1:]        # Add a Piece to Board at Location i
-                b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
-                L += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_board if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b, i, self.OPPONENT) else [b_temp]
-        return L
-
     # Static Estimation of the Board
     # @param b: Board
     # @param is_opening   True: Opening, False: Not Opening
-    # @return: Evaluation of the Board 
+    # @return: Evaluation of the Board
+    @lru_cache(maxsize=CACHE_EST)
     def __static_estimation(self, b: str, is_opening: bool) -> int:
         num_pieces_player = b.count(self.PLAYER)
         num_pieces_opponent = b.count(self.OPPONENT)
@@ -192,7 +182,7 @@ class Morris:
         num_pieces_premill_opponent = 0
         num_pieces_double_premill_player = 0
         num_pieces_double_premill_opponent = 0
-        
+
         # Feature Calculation
         for pos in range(len(b)):
             if b[pos] == self.PLAYER:
@@ -309,6 +299,10 @@ def neighbors_long(loc: int) -> list[int]:
 # Builds Moves Cache
 # @param max_moves: Moves Before Considering a Draw
 def build_cache(max_moves: int):
+    # Register Signal Handler (Ctrl + C to Save/Exit)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Initialize Players
     white = Morris(PIECES, NUM_PIECES, 7)                               # White Player
     black = Morris((PIECES[1], PIECES[0], PIECES[2]), NUM_PIECES, 7)    # Black Player
 
@@ -325,18 +319,25 @@ def build_cache(max_moves: int):
         board_state = (0, board_start)
         print("{0:s}Game #{1:<4d}{0:s}\n   0) Start: {2:s}".format("-----------------------------------", i_game, board_start))
         for i_move in range(max_moves):
-            t1 = time.time()
-            board_state = (black if i_move % 2 else white).play(board_state[1], cache_moves) # Play Move
+            time_start = time.time()
+            player = black if i_move % 2 else white
+            board_before_1st_try = board_state[1]
+            board_state = player.play(board_state[1], cache_moves) # Play Move
 
-            # Write Moves Cache to Disk
-            if WRITE_CACHE:
-                with open(FILE_CACHE, 'wb') as f:
-                    pickle.dump(cache_moves, f, protocol=pickle.HIGHEST_PROTOCOL)
+            elapsed = time.time() - time_start
+            depth_extra = 0 if elapsed > 42 or elapsed < 0.03 else 1 if elapsed > 12 else 2 if elapsed > 3 else 3
+            print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player == white else "Black", board_state[1], elapsed, depth_extra))
 
-            # Print Results
-            print("{0:4d}) {1:s}: {2:s} Time: {3:.8f}s".format(i_move + 1, "Black" if i_move % 2 else "White", board_state[1], time.time()-t1))
-            if board_state[0] >= MAX_SIZE or board_state[0] <= MIN_SIZE:
-                print("-----------> {0:s} WINS!".format("BLACK" if i_move % 2 else "WHITE"))
+            # Increase Depth if Calculation was Really Fast (JANKY)
+            if depth_extra:
+                player.MAX_DEPTH += depth_extra
+                player.moves_made -= 1
+                board_state = player.play(board_before_1st_try, cache_moves, use_cache=False) # Play Move
+                player.MAX_DEPTH -= depth_extra
+                print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player == white else "Black", board_state[1], time.time() - time_start - elapsed))
+
+            if board_state[0] <= MIN_SIZE: # or board_state[0] >= MAX_SIZE
+                print(f"-----------> {'BLACK' if player == white else 'WHITE'} WINS!")
                 break
         else:
             print("-----------> MOVE LIMIT REACHED!")
@@ -345,6 +346,7 @@ def build_cache(max_moves: int):
 # @param is_white: Whether the Player is White, or Black
 def challenge(is_white: bool):
     player = Morris(PIECES if is_white else (PIECES[1], PIECES[0], PIECES[2]), NUM_PIECES, 6)
+    player.moves_made = 1
     while True:
         board = input('INPUT: ')
 
@@ -359,15 +361,24 @@ def challenge(is_white: bool):
             board = BOARD_EMPTY
 
         # Play Move & Print Board
-        t1 = time.time()
+        time_start = time.time()
         board_state = player.play(board, cache_moves) # Play Move (Using Cache if Available)
-        print("BOARD: {0:s}\nTime Taken: {1:.8f}s".format(board_state[1], time.time()-t1))
+        print("BOARD: {0:s}\nTime Taken: {1:.8f}s".format(board_state[1], time.time() - time_start))
+
+# Handles Signal (Ctrl + C)
+def signal_handler(signum, frame):
+    if WRITE_CACHE:
+        with open(FILE_CACHE, 'wb') as f:
+            pickle.dump(cache_moves, f, protocol=pickle.HIGHEST_PROTOCOL)
+    if input(("Saved Cache to Disk. " if WRITE_CACHE else "") + "Quit? ")[0].lower() == "y":
+        exit("Quitting...")
 
 # Main: Play a Tournament Game or Build Cache
 if __name__=="__main__":
     # Imports for Caching & Timing
     import pickle
     from os.path import exists
+    import signal
     import time
 
     # Load Moves Cache
@@ -377,5 +388,5 @@ if __name__=="__main__":
     else:
         cache_moves = {}
 
-    challenge(True)
+    challenge(False)
     #build_cache(25)
