@@ -8,8 +8,8 @@ from functools import lru_cache
 PIECES = ('W', 'B', 'x')        # Pieces (Primary, Secondary, Empty)
 NUM_PIECES = 8                  # Number of Pieces Each Player Has
 CACHE_EST = 225_000             # Size of Estimations Cache (37,450: ~1GB, None: No Caching)
-READ_CACHE = False               # Load Moves from Moves Cache File
-WRITE_CACHE = False              # Write Moves to Moves Cache File
+READ_CACHE = True               # Load Moves from Moves Cache File
+WRITE_CACHE = True              # Write Moves to Moves Cache File
 FILE_CACHE = "moves_cache.pkl"  # Filename of Moves Cache File
 
 # Constants
