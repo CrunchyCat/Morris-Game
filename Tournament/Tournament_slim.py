@@ -345,8 +345,7 @@ def build_cache(max_moves: int):
 # Challenge Another Player in Tournament
 # @param is_white: Whether the Player is White, or Black
 def challenge(is_white: bool):
-    player = Morris(PIECES if is_white else (PIECES[1], PIECES[0], PIECES[2]), NUM_PIECES, 6)
-    player.moves_made = 1
+    player = Morris(PIECES if is_white else (PIECES[1], PIECES[0], PIECES[2]), NUM_PIECES, 8)
     while True:
         board = input('INPUT: ')
 
@@ -388,5 +387,5 @@ if __name__=="__main__":
     else:
         cache_moves = {}
 
-    challenge(False)
+    challenge(True)
     #build_cache(25)
