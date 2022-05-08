@@ -7,7 +7,7 @@ from functools import lru_cache
 # Configuration
 PIECES = ('W', 'B', 'x')        # Pieces (Primary, Secondary, Empty)
 NUM_PIECES = 8                  # Number of Pieces Each Player Has
-CACHE_EST = 225_000             # Size of Estimations Cache (37,450: ~1GB, None: No Caching)
+CACHE_EST = 225_000             # Size of Estimations Cache (37,450: ~1GB, 0: No Caching)
 READ_CACHE = True               # Load Moves from Moves Cache File
 WRITE_CACHE = True              # Write Moves to Moves Cache File
 FILE_CACHE = "moves_cache.pkl"  # Filename of Moves Cache File
@@ -52,7 +52,7 @@ class Morris:
         if depth >= self.MAX_DEPTH:
             return (self.__static_estimation(b, self.moves_made + depth // 2 <= self.NUM_PIECES), b)
         move_best: str = "" # Empty String: No Best Move
-        moves_possible = []
+        moves_possible: list[str] = []
         if depth % 2 == 0: # If player #1
             range_asc = range(len(b)) # Backwards Faster, but Moves were Cached for Forward ¯\_(ツ)_/¯
             if self.moves_made + depth // 2 <= self.NUM_PIECES:
@@ -70,10 +70,10 @@ class Morris:
             for move in moves_possible:
                 eval = self.__ab(move, depth + 1, max(alpha, eval_best), beta)[0]
                 if eval > eval_best:
+                    if eval >= beta:
+                        return (eval, move)
                     eval_best = eval
                     move_best = move
-                if eval_best >= beta:
-                    return (eval_best, move_best)
         else: # If Player #2
             range_dsc = range(len(b) - 1, -1, -1) # Backwards, Allows More Pruning, Bottom of Board is Bad
             if self.moves_made + depth // 2 <= self.NUM_PIECES:
@@ -91,10 +91,10 @@ class Morris:
             for move in moves_possible:
                 eval = self.__ab(move, depth + 1, alpha, min(beta, eval_best))[0]
                 if eval < eval_best:
+                    if eval <= alpha:
+                        return (eval, move)
                     eval_best = eval
                     move_best = move
-                if eval_best <= alpha:
-                    return (eval_best, move_best)
         return (eval_best, move_best)
 
     # Static Estimation of the Board
@@ -230,6 +230,7 @@ def will_close_double_mill(b: str, loc: int, p: str) -> bool:
 # Returns the List of Neighbors for a Location
 # @param loc: Location
 # @return: List of Locations
+@lru_cache(maxsize=21)
 def neighbors(loc: int) -> list[int]:
     return {
         0: [1, 2, 6],           1: [0, 3, 11],          2: [0, 3, 4, 7],
@@ -245,6 +246,7 @@ def neighbors(loc: int) -> list[int]:
 # A Long Neighbor is one that Could Form a Mill with the Piece at Location loc
 # @param loc: Location
 # @return: List of Locations
+@lru_cache(maxsize=21)
 def neighbors_long(loc: int) -> list[int]:
     return {
         0: [2, 6],              1: [3, 11],             2: [0, 4, 7],
