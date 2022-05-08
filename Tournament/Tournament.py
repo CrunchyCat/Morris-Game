@@ -285,7 +285,7 @@ def build_cache(max_moves: int):
             board_state = player.play(board_state[1], cache_moves) # Play Move
 
             elapsed = time.time() - time_start
-            depth_extra = 0 if elapsed > 42 or elapsed < 0.03 else 1 if elapsed > 12 else 2 if elapsed > 3 else 3
+            depth_extra = 0 if elapsed > 42 or elapsed < 0.03 else 1 if elapsed > 19 else 2 if elapsed > 3 else 3
             print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player == white else "Black", board_state[1], elapsed, depth_extra))
 
             # Increase Depth if Calculation was Really Fast (JANKY)
