@@ -269,7 +269,7 @@ def will_close_double_mill(b: str, loc: int, p: str) -> bool:
 # Returns the List of Neighbors for a Location
 # @param loc: Location
 # @return: List of Locations
-@lru_cache(maxsize=21)
+@lru_cache(maxsize=None)
 def neighbors(loc: int) -> list[int]:
     return {
         0: [1, 2, 6],           1: [0, 3, 11],          2: [0, 3, 4, 7],
@@ -285,7 +285,7 @@ def neighbors(loc: int) -> list[int]:
 # A Long Neighbor is one that Could Form a Mill with the Piece at Location loc
 # @param loc: Location
 # @return: List of Locations
-@lru_cache(maxsize=21)
+@lru_cache(maxsize=None)
 def neighbors_long(loc: int) -> list[int]:
     return {
         0: [2, 6],              1: [3, 11],             2: [0, 4, 7],
