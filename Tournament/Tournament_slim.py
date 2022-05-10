@@ -8,13 +8,27 @@ from functools import lru_cache
 PIECES = ('W', 'B', 'x')        # Pieces (Primary, Secondary, Empty)
 NUM_PIECES = 8                  # Number of Pieces Each Player Has
 CACHE_EST = 225_000             # Size of Estimations Cache (37,450: ~1GB, 0: No Caching)
-READ_CACHE = True               # Load Moves from Moves Cache File
-WRITE_CACHE = True              # Write Moves to Moves Cache File
+READ_CACHE = False               # Load Moves from Moves Cache File
+WRITE_CACHE = False              # Write Moves to Moves Cache File
 FILE_CACHE = "moves_cache.pkl"  # Filename of Moves Cache File
 
 # Constants
 BOARD_EMPTY = PIECES[2] * 21    # Starting Board: "xxxxxxxxxxxxxxxxxxxxx"
 MIN_SIZE, MAX_SIZE = -2147483647, 2147483647
+NEIGHBORS = {   0: [1, 2, 6],           1: [0, 3, 11],          2: [0, 3, 4, 7],
+                3: [1, 2, 5, 10],       4: [2, 5, 8],           5: [3, 4, 9],
+                6: [0, 7, 18],          7: [2, 6, 8, 15],       8: [4, 7, 12],
+                9: [5, 10, 14],         10: [3, 9, 11, 17],     11: [1, 10, 20],
+                12: [8, 13, 15],        13: [12, 14, 16],       14: [9, 13, 17],
+                15: [7, 12, 16, 18],    16: [13, 15, 17, 19],   17: [10, 14, 16, 20],
+                18: [6, 15, 19],        19: [16, 18, 20],       20: [11, 17, 19] }
+NEIGHBORS_LONG = {  0: [2, 6],              1: [3, 11],             2: [0, 4, 7],
+                    3: [1, 5, 10],          4: [2, 8],              5: [3, 9],
+                    6: [0, 7, 18],          7: [2, 6, 8, 15],       8: [4, 7, 12],
+                    9: [5, 10, 14],         10: [3, 9, 11, 17],     11: [1, 10, 20],
+                    12: [8, 13, 15],        13: [12, 14, 16],       14: [9, 13, 17],
+                    15: [7, 12, 16, 18],    16: [13, 15, 17, 19],   17: [10, 14, 16, 20],
+                    18: [6, 15, 19],        19: [16, 18, 20],       20: [11, 17, 19] }
 
 # Configures the Game Board & Makes Optimal Moves
 class Morris:
@@ -49,8 +63,6 @@ class Morris:
     # @param beta:        Current Beta Value
     # @return: Tuple of (Board after Move, Static Evaluation of the Board)
     def __ab(self, b: str, depth: int=0, alpha=MIN_SIZE, beta=MAX_SIZE) -> tuple[int, str]:
-        if depth >= self.MAX_DEPTH:
-            return (self.__static_estimation(b, self.moves_made + depth // 2 <= self.NUM_PIECES), b)
         move_best: str = "" # Empty String: No Best Move
         moves_possible: list[str] = []
         if depth % 2 == 0: # If player #1
@@ -62,13 +74,14 @@ class Morris:
             else:
                 is_endgame = b.count(self.PLAYER) == 3
                 for o in [i for i in range_asc if b[i] == self.PLAYER]:
-                    for i in [i for i in (range_asc if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
+                    for i in [i for i in (range_asc if is_endgame else NEIGHBORS[o]) if b[i] == self.EMPTY]:
                         b_temp = b[:i] + self.PLAYER + b[i+1:]          # Add a Piece to Board at Location i
                         b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
                         moves_possible += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_asc if b_temp[i] == self.OPPONENT and not will_close_mill(b_temp, i, self.OPPONENT)] if will_close_mill(b_temp, i, self.PLAYER) else [b_temp]
             eval_best = MIN_SIZE
+            depth += 1
             for move in moves_possible:
-                eval = self.__ab(move, depth + 1, max(alpha, eval_best), beta)[0]
+                eval = self.__static_estimation(b, self.moves_made + depth // 2 <= self.NUM_PIECES) if depth == self.MAX_DEPTH else self.__ab(move, depth, max(alpha, eval_best), beta)[0]
                 if eval > eval_best:
                     if eval >= beta:
                         return (eval, move)
@@ -83,13 +96,14 @@ class Morris:
             else:
                 is_endgame = b.count(self.OPPONENT) == 3
                 for o in [i for i in range_dsc if b[i] == self.OPPONENT]:
-                    for i in [i for i in (range_dsc if is_endgame else neighbors(o)) if b[i] == self.EMPTY]:
+                    for i in [i for i in (range_dsc if is_endgame else NEIGHBORS[o]) if b[i] == self.EMPTY]:
                         b_temp = b[:i] + self.OPPONENT + b[i+1:]        # Add a Piece to Board at Location i
                         b_temp = b_temp[:o] + self.EMPTY + b_temp[o+1:] # Remove Piece from Origin Location o
                         moves_possible += [b_temp[:i] + self.EMPTY + b_temp[i+1:] for i in range_dsc if b_temp[i] == self.PLAYER and not will_close_mill(b_temp, i, self.PLAYER)] if will_close_mill(b_temp, i, self.OPPONENT) else [b_temp]
             eval_best = MAX_SIZE
+            depth += 1
             for move in moves_possible:
-                eval = self.__ab(move, depth + 1, alpha, min(beta, eval_best))[0]
+                eval = self.__static_estimation(b, self.moves_made + depth // 2 <= self.NUM_PIECES) if depth == self.MAX_DEPTH else self.__ab(move, depth, alpha, min(beta, eval_best))[0]
                 if eval < eval_best:
                     if eval <= alpha:
                         return (eval, move)
@@ -122,16 +136,16 @@ class Morris:
                 if b[pos] == self.PLAYER:
                     if will_close_mill(b, pos, self.PLAYER):
                         num_pieces_mill_player += 1
-                    elif sum(1 for j in neighbors_long(pos) if b[j] == self.PLAYER) > 1:
+                    elif sum(1 for j in NEIGHBORS_LONG[pos] if b[j] == self.PLAYER) > 1:
                         num_pieces_double_premill_player += 1
-                    if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                    if not [j for j in NEIGHBORS[pos] if b[j] == self.EMPTY]:
                         num_pieces_blocked_player += 1
                 elif b[pos] == self.OPPONENT:
                     if will_close_mill(b, pos, self.OPPONENT):
                         num_pieces_mill_opponent += 1
-                    elif sum(1 for j in neighbors_long(pos) if b[j] == self.OPPONENT) > 1:
+                    elif sum(1 for j in NEIGHBORS_LONG[pos] if b[j] == self.OPPONENT) > 1:
                         num_pieces_double_premill_opponent += 1
-                    if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                    if not [j for j in NEIGHBORS[pos] if b[j] == self.EMPTY]:
                         num_pieces_blocked_opponent += 1
                 else: # Empty Space
                     if will_close_mill(b, pos, self.PLAYER):
@@ -159,14 +173,14 @@ class Morris:
                         num_pieces_mill_player += 1
                         if will_close_double_mill(b, pos, self.PLAYER):
                             num_double_mill_player += 1
-                    if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                    if not [j for j in NEIGHBORS[pos] if b[j] == self.EMPTY]:
                         num_pieces_blocked_player += 1
                 elif b[pos] == self.OPPONENT:
                     if will_close_mill(b, pos, self.OPPONENT):
                         num_pieces_mill_opponent += 1
                         if will_close_double_mill(b, pos, self.OPPONENT):
                             num_double_mill_opponent += 1
-                    if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                    if not [j for j in NEIGHBORS[pos] if b[j] == self.EMPTY]:
                         num_pieces_blocked_opponent += 1
             return (
                 14 * (num_pieces_mill_player - num_pieces_mill_opponent)
@@ -185,14 +199,14 @@ class Morris:
         # Feature Calculation
         for pos in range(len(b)):
             if b[pos] == self.PLAYER:
-                if not will_close_mill(b, pos, self.PLAYER) and sum(1 for j in neighbors_long(pos) if b[j] == self.PLAYER) > 1:
+                if not will_close_mill(b, pos, self.PLAYER) and sum(1 for j in NEIGHBORS_LONG[pos] if b[j] == self.PLAYER) > 1:
                     num_pieces_double_premill_player += 1
-                if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                if not [j for j in NEIGHBORS[pos] if b[j] == self.EMPTY]:
                     num_pieces_blocked_player += 1
             elif b[pos] == self.OPPONENT:
-                if not will_close_mill(b, pos, self.OPPONENT) and sum(1 for j in neighbors_long(pos) if b[j] == self.OPPONENT) > 1:
+                if not will_close_mill(b, pos, self.OPPONENT) and sum(1 for j in NEIGHBORS_LONG[pos] if b[j] == self.OPPONENT) > 1:
                     num_pieces_double_premill_opponent += 1
-                if not [j for j in neighbors(pos) if b[j] == self.EMPTY]:
+                if not [j for j in NEIGHBORS[pos] if b[j] == self.EMPTY]:
                     num_pieces_blocked_opponent += 1
             else: # Empty Space
                 if will_close_mill(b, pos, self.PLAYER):
@@ -266,37 +280,6 @@ def will_close_double_mill(b: str, loc: int, p: str) -> bool:
         20: (b[1] == b[11] == b[14] == b[17] == p) or (b[14] == b[17] == b[18] == b[19] == p)
     }[loc]
 
-# Returns the List of Neighbors for a Location
-# @param loc: Location
-# @return: List of Locations
-@lru_cache(maxsize=None)
-def neighbors(loc: int) -> list[int]:
-    return {
-        0: [1, 2, 6],           1: [0, 3, 11],          2: [0, 3, 4, 7],
-        3: [1, 2, 5, 10],       4: [2, 5, 8],           5: [3, 4, 9],
-        6: [0, 7, 18],          7: [2, 6, 8, 15],       8: [4, 7, 12],
-        9: [5, 10, 14],         10: [3, 9, 11, 17],     11: [1, 10, 20],
-        12: [8, 13, 15],        13: [12, 14, 16],       14: [9, 13, 17],
-        15: [7, 12, 16, 18],    16: [13, 15, 17, 19],   17: [10, 14, 16, 20],
-        18: [6, 15, 19],        19: [16, 18, 20],       20: [11, 17, 19]
-    }[loc]
-
-# Returns the List of Long Neighbors for a Location
-# A Long Neighbor is one that Could Form a Mill with the Piece at Location loc
-# @param loc: Location
-# @return: List of Locations
-@lru_cache(maxsize=None)
-def neighbors_long(loc: int) -> list[int]:
-    return {
-        0: [2, 6],              1: [3, 11],             2: [0, 4, 7],
-        3: [1, 5, 10],          4: [2, 8],              5: [3, 9],
-        6: [0, 7, 18],          7: [2, 6, 8, 15],       8: [4, 7, 12],
-        9: [5, 10, 14],         10: [3, 9, 11, 17],     11: [1, 10, 20],
-        12: [8, 13, 15],        13: [12, 14, 16],       14: [9, 13, 17],
-        15: [7, 12, 16, 18],    16: [13, 15, 17, 19],   17: [10, 14, 16, 20],
-        18: [6, 15, 19],        19: [16, 18, 20],       20: [11, 17, 19]
-    }[loc]
-
 # Builds Moves Cache
 # @param max_moves: Moves Before Considering a Draw
 def build_cache(max_moves: int):
@@ -327,7 +310,7 @@ def build_cache(max_moves: int):
 
             elapsed = time.time() - time_start
             depth_extra = 0 if elapsed > 42 or elapsed < 0.03 else 1 if elapsed > 19 else 2 if elapsed > 3 else 3
-            print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player == white else "Black", board_state[1], elapsed, depth_extra))
+            print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player is white else "Black", board_state[1], elapsed, depth_extra))
 
             # Increase Depth if Calculation was Really Fast (JANKY)
             if depth_extra:
@@ -335,10 +318,10 @@ def build_cache(max_moves: int):
                 player.moves_made -= 1
                 board_state = player.play(board_before_1st_try, cache_moves, use_cache=False) # Play Move
                 player.MAX_DEPTH -= depth_extra
-                print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player == white else "Black", board_state[1], time.time() - time_start - elapsed))
+                print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player is white else "Black", board_state[1], time.time() - time_start - elapsed))
 
             if board_state[0] <= MIN_SIZE: # or board_state[0] >= MAX_SIZE
-                print(f"-----------> {'BLACK' if player == white else 'WHITE'} WINS!")
+                print(f"-----------> {'BLACK' if player is white else 'WHITE'} WINS!")
                 break
         else:
             print("-----------> MOVE LIMIT REACHED!")
@@ -388,5 +371,5 @@ if __name__=="__main__":
     else:
         cache_moves = {}
 
-    challenge(True)
-    #build_cache(25)
+    #challenge(True)
+    build_cache(25)
