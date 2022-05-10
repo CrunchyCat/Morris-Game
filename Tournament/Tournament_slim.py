@@ -315,12 +315,12 @@ def build_cache(max_moves: int):
             print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player is white else "Black", board_state[1], elapsed, depth_extra))
 
             # Increase Depth if Calculation was Really Fast (JANKY)
-            # if depth_extra:
-            #     player.MAX_DEPTH += depth_extra
-            #     player.moves_made -= 1
-            #     board_state = player.play(board_before_1st_try, cache_moves, use_cache=False) # Play Move
-            #     player.MAX_DEPTH -= depth_extra
-            #     print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player is white else "Black", board_state[1], time.time() - time_start - elapsed))
+            if depth_extra:
+                player.MAX_DEPTH += depth_extra
+                player.moves_made -= 1
+                board_state = player.play(board_before_1st_try, cache_moves, use_cache=False) # Play Move
+                player.MAX_DEPTH -= depth_extra
+                print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player is white else "Black", board_state[1], time.time() - time_start - elapsed))
 
             if board_state[0] <= MIN_SIZE: # or board_state[0] >= MAX_SIZE
                 print(f"-----------> {'BLACK' if player is white else 'WHITE'} WINS!")
