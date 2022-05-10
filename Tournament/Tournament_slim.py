@@ -63,6 +63,7 @@ class Morris:
     # @param beta:        Current Beta Value
     # @return: Tuple of (Board after Move, Static Evaluation of the Board)
     def __ab(self, b: str, depth: int=0, alpha=MIN_SIZE, beta=MAX_SIZE) -> tuple[int, str]:
+        global NEIGHBORS, MIN_SIZE, MAX_SIZE
         move_best: str = "" # Empty String: No Best Move
         moves_possible: list[str] = []
         if depth % 2 == 0: # If player #1
@@ -117,6 +118,7 @@ class Morris:
     # @return: Evaluation of the Board
     @lru_cache(maxsize=CACHE_EST)
     def __static_estimation(self, b: str, is_opening: bool) -> int:
+        global NEIGHBORS, NEIGHBORS_LONG
         num_pieces_player = b.count(self.PLAYER)
         num_pieces_opponent = b.count(self.OPPONENT)
         num_pieces_blocked_player = 0
@@ -313,12 +315,12 @@ def build_cache(max_moves: int):
             print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player is white else "Black", board_state[1], elapsed, depth_extra))
 
             # Increase Depth if Calculation was Really Fast (JANKY)
-            if depth_extra:
-                player.MAX_DEPTH += depth_extra
-                player.moves_made -= 1
-                board_state = player.play(board_before_1st_try, cache_moves, use_cache=False) # Play Move
-                player.MAX_DEPTH -= depth_extra
-                print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player is white else "Black", board_state[1], time.time() - time_start - elapsed))
+            # if depth_extra:
+            #     player.MAX_DEPTH += depth_extra
+            #     player.moves_made -= 1
+            #     board_state = player.play(board_before_1st_try, cache_moves, use_cache=False) # Play Move
+            #     player.MAX_DEPTH -= depth_extra
+            #     print("%4d) %s: %s Time: %.8fs (REDO)" % (i_move + 1, "White" if player is white else "Black", board_state[1], time.time() - time_start - elapsed))
 
             if board_state[0] <= MIN_SIZE: # or board_state[0] >= MAX_SIZE
                 print(f"-----------> {'BLACK' if player is white else 'WHITE'} WINS!")
