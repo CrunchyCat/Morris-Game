@@ -250,8 +250,8 @@ def build_cache(max_moves: int):
     signal.signal(signal.SIGINT, signal_handler)
 
     # Initialize Players
-    white = Morris(PIECES, NUM_PIECES, 7)                               # White Player
-    black = Morris((PIECES[1], PIECES[0], PIECES[2]), NUM_PIECES, 7)    # Black Player
+    white = Morris(PIECES, NUM_PIECES, 8)                               # White Player
+    black = Morris((PIECES[1], PIECES[0], PIECES[2]), NUM_PIECES, 8)    # Black Player
 
     # Make List of Starting Boards
     boards_starting = [BOARD_EMPTY]
@@ -272,7 +272,7 @@ def build_cache(max_moves: int):
             board_state = player.play(board_state[1], cache_moves) # Play Move
 
             elapsed = time.time() - time_start
-            depth_extra = 0 if elapsed > 42 or elapsed < 0.03 else 1 if elapsed > 19 else 2 if elapsed > 3 else 3
+            depth_extra = 0 if elapsed > 45 or elapsed < 0.03 else 1 if elapsed > 19 else 2 if elapsed > 3 else 3
             print("%4d) %s: %s Time: %.8fs (+%d)" % (i_move + 1, "White" if player is white else "Black", board_state[1], elapsed, depth_extra))
 
             # Increase Depth if Calculation was Really Fast (JANKY)
